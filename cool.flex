@@ -39,6 +39,11 @@ extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
 
+unsigned int comment_level = 0;
+unsigned int string_buf_left;
+bool string_error;
+
+#define ASSERT_ERROR (error_message) 
 /*
  *  Add Your own definitions here
  */
@@ -69,15 +74,54 @@ TYPEID		[A-Z][a-zA-Z0-9_]*
 DIGIT		[0-9]
 CHAR		[a-zA-Z]
 WHITESPACE	[ \f\t\r\v]
-
-
-/*
- * Define names for regular expressions here.
- */
-
 DARROW          =>
 
+STRING_COMMENT	"--"
+START_COMMENT	"(*"
+END_COMMENT	"*)"
+QUOTES		\"
+
+%xINITIAL COMMENT STRING
+
 %%
+
+<INITIAL>{START_COMMENT} {
+	comment_level++;
+	BEGIN(COMMENT);
+}
+
+<COMMENT>{START_COMMENT} {
+	comment_level++;
+}
+
+<COMMENT>[\n] {
+	curr_luneno++;
+	BEGIN<COMMENT>;
+}
+
+<COMMENT><<EOF>> {
+	yylval.error_msg = "EOF in comment";
+	BEGIN(INITIAL);
+	return(ERROR);
+}
+
+<COMMENT>{END_COMMENT} {
+	comment_level--;
+	if ( comment_level == 0)
+		BEGIN(INITIAL);
+}
+
+<INITIAL>{STRING_COMMENT} {
+	yylval.error_msg = "Unmatched *)";
+	return(ERROR);
+}
+
+<INITIAL>{QUOTES} {
+	BEGIN(STRING);
+	string_buf_ptr = string_buf;
+	string_buf_left = MAX_STR_CONST;
+}
+
 
  /*
   *  Nested comments
