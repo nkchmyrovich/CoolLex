@@ -45,6 +45,32 @@ extern YYSTYPE cool_yylval;
 
 %}
 
+CLASS           ?i:class
+ELSE            ?i:else
+IF              ?i:if
+FI              ?i:fi
+IN              ?i:in
+INHERITS        ?i:inherits
+LET             ?i:let
+LOOP            ?i:loop
+POOL            ?i:poot
+THEN            ?i:then
+WHILE           ?i:while
+CASE            ?i:case
+ESAC            ?i:esac
+OF              ?i:of
+NEW             ?i:new
+ISVOID          ?i:isvoid
+NOT		?i:not
+TRUE		t[Rr][Uu][Ee]
+FALSE		f[Aa][Ll][Ss][Ee]
+OBJECTID	[a-z][a-zA-Z0-9_]*
+TYPEID		[A-Z][a-zA-Z0-9_]*
+DIGIT		[0-9]
+CHAR		[a-zA-Z]
+WHITESPACE	[ \f\t\r\v]
+
+
 /*
  * Define names for regular expressions here.
  */
