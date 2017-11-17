@@ -79,10 +79,26 @@ STRING_COMMENT	"--"
 START_COMMENT	"(*"
 END_COMMENT	"*)"
 QUOTES		\"
+WHITESPACE	[ \t\r\f\v]+
+NOTSTRING	[^\n\0\\\"]+
 
-%xINITIAL COMMENT STRING
+%xINITIAL COMMENT STRING STRING_COMMENT ERROR_STRING
 
 %%
+
+<INITIAL>-- {
+	BEGIN(STRING_COMMENT);
+}
+
+<STRING_COMMENT><<<EOF>> {
+	yyterminate();
+}
+
+<STRING_COMMENT>[\n] {
+	curr_lineno++;
+	BEGIN(INITIAL);
+} 
+	
 
 <INITIAL>{START_COMMENT} {
 	comment_level++;
@@ -101,7 +117,7 @@ QUOTES		\"
 <COMMENT><<EOF>> {
 	yylval.error_msg = "EOF in comment";
 	BEGIN(INITIAL);
-	return(ERROR);
+	return ERROR;
 }
 
 <COMMENT>{END_COMMENT} {
@@ -110,9 +126,9 @@ QUOTES		\"
 		BEGIN(INITIAL);
 }
 
-<INITIAL>{STRING_COMMENT} {
+<INITIAL>{END_COMMENT} {
 	yylval.error_msg = "Unmatched *)";
-	return(ERROR);
+	return ERROR;
 }
 
 <INITIAL>{QUOTES} {
@@ -120,6 +136,62 @@ QUOTES		\"
 	string_buf_ptr = string_buf;
 	string_buf_left = MAX_STR_CONST;
 }
+
+<STRING><<EOF>> {
+	yylval.error_msg = "EOF in string constant";
+	BEGIN(INITIAL);
+	return ERROR;
+}
+
+<STRING>{
+\\?\0		{
+	*string_buf_ptr = '\0';
+	BEGIN(INITIAL);
+	cool_yylval.symbol = stringtable.add_string(string_buf);
+	return STR_CONST;
+}
+\n		{
+	curr_lineno++;
+	BEGIN(INITIAL);
+	yylval.error_msg = "Unterminated string constant";
+	return ERROR;
+}
+<<EOF>>		{
+	BEGIN(INITIAL);
+	yylval.error_msg = "EOF in string constant";
+	return ERROR;
+}
+\\b
+\\f
+\\t
+\\n
+\\\n
+\\?\0		{
+	BEGIN(ERROR_STRING);
+	yylval.error_msg = "String contains null character";
+	return ERROR;
+}
+NOTSTRING	{
+	if ( string_buf_ptr + yyleng > &string_buf[MAX_STR_CONST - 1]) {
+		BEGIN(ERROR_STRING);
+		yylval.error_msg = "String constant is too long";
+		return ERROR;
+	}
+	strcpy(string_buf_ptr, yy_text);
+	string_buf_ptr += yyleng;
+}
+}
+
+
+<ERROR_STRING>{
+\"		BEGIN(INITIAL);
+\n		{
+			curr_lineno++;
+			BEGIN(INITIAL);
+		}
+\\\n		{ curr_lineno++;}
+}
+
 
 
  /*
