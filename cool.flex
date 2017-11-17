@@ -42,8 +42,7 @@ extern YYSTYPE cool_yylval;
 unsigned int comment_level = 0;
 unsigned int string_buf_left;
 bool string_error;
-
-#define ASSERT_ERROR (error_message) 
+ 
 /*
  *  Add Your own definitions here
  */
