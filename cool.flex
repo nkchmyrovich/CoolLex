@@ -72,7 +72,6 @@ OBJECTID	[a-z][a-zA-Z0-9_]*
 TYPEID		[A-Z][a-zA-Z0-9_]*
 DIGIT		[0-9]
 CHAR		[a-zA-Z]
-WHITESPACE	[ \f\t\r\v]
 DARROW          =>
 
 STRING_COMMENT	"--"
@@ -91,7 +90,7 @@ NOTSTRING	[^\n\0\\\"]+
 }
 
 <STRING_COMMENT><<<EOF>> {
-	yyterminate();
+	//fixit	
 }
 
 <STRING_COMMENT>[\n] {
@@ -156,7 +155,7 @@ NOTSTRING	[^\n\0\\\"]+
 	yylval.error_msg = "Unterminated string constant";
 	return ERROR;
 }
-<<EOF>>		{
+<EOF>		{
 	BEGIN(INITIAL);
 	yylval.error_msg = "EOF in string constant";
 	return ERROR;
@@ -216,6 +215,24 @@ NOTSTRING	{
   *  \n \t \b \f, the result is c.
   *
   */
+<INITIAL>{TYPEID}	{
+	yylval.symbol = stringtable.add_string(yytext);
+	return TYPEID;
+}
 
+<INITIAL>{OBJECTID}	{
+	yylval.error_msg = stringtable.add_string(yytext);
+	return OBJECTID;
+}
+
+{DIGIT}+		{
+	yylval.symbol = inttable.add_string(yytext);
+	return INT_CONST;
+}
+
+<INITIAL>.		{
+	yylval.error_msg = yytext;
+	return ERROR;
+}
 
 %%
