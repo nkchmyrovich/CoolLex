@@ -47,6 +47,18 @@ bool string_error;
  *  Add Your own definitions here
  */
 
+#define ASSERT(error_message) \
+        cool_yylval.error_msg = (error_message); \
+        return ERROR; \
+
+#define STRING_OK(c) \
+        if (string_buf_ptr + 1 > &string_buf[MAX_STR_CONST - 1]) { \
+            BEGIN(ERROR_STRING); \
+            ASSERT("String constant too long"); \
+        } \
+        *string_buf_ptr++ = (c); \
+
+
 %}
 
 CLASS           ?i:class
@@ -89,9 +101,10 @@ NOTSTRING	[^\n\0\\\"]+
 	BEGIN(STRING_COMMENT);
 }
 
-<STRING_COMMENT><<<EOF>> {
-	//fixit	
+<STRING_COMMENT><<EOF>>   {
+        yyterminate();
 }
+
 
 <STRING_COMMENT>[\n] {
 	curr_lineno++;
@@ -109,8 +122,8 @@ NOTSTRING	[^\n\0\\\"]+
 }
 
 <COMMENT>[\n] {
-	curr_luneno++;
-	BEGIN<COMMENT>;
+	curr_lineno++;
+	BEGIN(COMMENT);
 }
 
 <COMMENT><<EOF>> {
@@ -143,55 +156,52 @@ NOTSTRING	[^\n\0\\\"]+
 }
 
 <STRING>{
-\\?\0		{
-	*string_buf_ptr = '\0';
-	BEGIN(INITIAL);
-	cool_yylval.symbol = stringtable.add_string(string_buf);
-	return STR_CONST;
+\"              {
+                        *string_buf_ptr = '\0';
+                        BEGIN(INITIAL);
+                        cool_yylval.symbol = stringtable.add_string(string_buf);
+                        return STR_CONST;
+                    }
+\\?\0           {
+                        BEGIN(ERROR_STRING);
+                        ASSERT("String contains null character");
+                    }
+\n              {
+                        ++curr_lineno;
+                        BEGIN(INITIAL);
+                        ASSERT("Unterminated string constant");
+                    }
+\\b             STRING_OK('\b');
+\\f             STRING_OK('\f');
+\\t             STRING_OK('\t');
+\\n             STRING_OK('\n');
+\\\n            {
+        curr_lineno++;
+        STRING_OK('\n');
 }
-\n		{
-	curr_lineno++;
-	BEGIN(INITIAL);
-	yylval.error_msg = "Unterminated string constant";
-	return ERROR;
-}
-<EOF>		{
-	BEGIN(INITIAL);
-	yylval.error_msg = "EOF in string constant";
-	return ERROR;
-}
-\\b
-\\f
-\\t
-\\n
-\\\n
-\\?\0		{
-	BEGIN(ERROR_STRING);
-	yylval.error_msg = "String contains null character";
-	return ERROR;
-}
-NOTSTRING	{
-	if ( string_buf_ptr + yyleng > &string_buf[MAX_STR_CONST - 1]) {
-		BEGIN(ERROR_STRING);
-		yylval.error_msg = "String constant is too long";
-		return ERROR;
-	}
-	strcpy(string_buf_ptr, yy_text);
-	string_buf_ptr += yyleng;
+\\.             STRING_OK(yytext[1]);
+[^\\\n\0\"]+    {
+	if (string_buf_ptr + yyleng >&string_buf[MAX_STR_CONST - 1]) {
+        	BEGIN(ERROR_STRING);
+        	ASSERT("String constant too long");
+        }
+        strcpy(string_buf_ptr, yytext);
+        string_buf_ptr += yyleng;
 }
 }
+
 
 
 <ERROR_STRING>{
-\"		BEGIN(INITIAL);
-\n		{
-			curr_lineno++;
-			BEGIN(INITIAL);
-		}
-\\\n		{ curr_lineno++;}
+    \"          BEGIN(INITIAL);
+    \n          {
+                    ++curr_lineno;
+                    BEGIN(INITIAL);
+                }
+    \\\n        {++curr_lineno;}
+    \\.         ;
+    [^\\\n\"]+  ;
 }
-
-
 
  /*
   *  Nested comments
@@ -202,6 +212,26 @@ NOTSTRING	{
   *  The multiple-character operators.
   */
 {DARROW}		{ return (DARROW); }
+{CLASS}                 { return CLASS; }
+{ELSE}                  { return ELSE; }                        
+{FI}                    { return FI; }
+{IF}                    { return IF; }                          
+{IN}                    { return IN; }
+{INHERITS}              { return INHERITS; }
+{LET}                   { return LET; }
+{LOOP}                  { return LOOP; }
+{POOL}                  { return POOL; }
+{THEN}                  { return THEN; }                        
+{WHILE}                 { return WHILE; }
+{CASE}                  { return CASE; }
+{ESAC}                  { return ESAC; }
+{NEW}                   { return NEW; }
+{ISVOID}                { return ISVOID; }                      
+{OF}                    { return OF; }
+{NOT}                   { return NOT; }
+
+{TRUE}                  { yylval.boolean = true; return BOOL_CONST; }
+{FALSE}                 { yylval.boolean = false; return BOOL_CONST; }
 
  /*
   * Keywords are case-insensitive except for the values true and false,
@@ -215,24 +245,22 @@ NOTSTRING	{
   *  \n \t \b \f, the result is c.
   *
   */
-<INITIAL>{TYPEID}	{
-	yylval.symbol = stringtable.add_string(yytext);
-	return TYPEID;
-}
 
-<INITIAL>{OBJECTID}	{
-	yylval.error_msg = stringtable.add_string(yytext);
-	return OBJECTID;
-}
 
-{DIGIT}+		{
-	yylval.symbol = inttable.add_string(yytext);
-	return INT_CONST;
-}
+<INITIAL>{TYPEID}       {  cool_yylval.symbol = stringtable.add_string(yytext);
+                           return TYPEID;
+                                        }
+<INITIAL>{OBJECTID}     {  cool_yylval.symbol = stringtable.add_string(yytext);
+                           return OBJECTID;
+                                        }
+{DIGIT}+                {
+                        cool_yylval.symbol = inttable.add_string(yytext);
+                        return INT_CONST;
+                        }
+<INITIAL>\n             {++curr_lineno;}                        
+<INITIAL>{WHITESPACE}   {}
 
-<INITIAL>.		{
-	yylval.error_msg = yytext;
-	return ERROR;
-}
+<INITIAL>.              {ASSERT(yytext);}
+
 
 %%
