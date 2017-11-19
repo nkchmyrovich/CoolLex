@@ -59,7 +59,7 @@ unsigned int comment_level = 0;
 
 %}
 
-%x INITIAL COMMENT STRING STRING_COMMENT ERROR_STRING
+%x COMMENT STRING STRING_COMMENT ERROR_STRING
 
 CLASS           ?i:class
 ELSE            ?i:else
@@ -100,7 +100,7 @@ NOTSTRING	[^\n\0\\\"]
 }
 
 <STRING_COMMENT><<EOF>>   {
-        yyterminate();
+	yyterminate();
 }
 
 
@@ -108,6 +108,8 @@ NOTSTRING	[^\n\0\\\"]
 	curr_lineno++;
 	BEGIN(INITIAL);
 } 
+
+<STRING_COMMENT>[^\n] {}
 
 <INITIAL>{START_COMMENT} {
 	BEGIN(COMMENT);
@@ -137,6 +139,8 @@ NOTSTRING	[^\n\0\\\"]
 	curr_lineno++;
 }
 
+<COMMENT>[^*(]|"("[^*]|"*"[^)] {}
+
 <COMMENT><<EOF>> {
 	BEGIN(INITIAL);
 	ASSERT("EOF in comment");
@@ -147,8 +151,10 @@ NOTSTRING	[^\n\0\\\"]
 	BEGIN(STRING);
 }
 
+<INITIAL><<EOF>> {}
+
 <STRING>{
-{QUOTES}              {
+\"              {
                         *string_buf_ptr = '\0';
                         BEGIN(INITIAL);
                         cool_yylval.symbol = stringtable.add_string(string_buf);
@@ -193,7 +199,10 @@ NOTSTRING	[^\n\0\\\"]
                     ++curr_lineno;
                     BEGIN(INITIAL);
                 }
-    \\\n        {++curr_lineno;}`
+    \\\n        {++curr_lineno;}
+    \\.         ;
+    [^\\\n\"]+  ;
+
 }
 
 "("         {return '(';}
