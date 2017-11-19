@@ -69,7 +69,7 @@ IN              ?i:in
 INHERITS        ?i:inherits
 LET             ?i:let
 LOOP            ?i:loop
-POOL            ?i:poot
+POOL            ?i:pool
 THEN            ?i:then
 WHILE           ?i:while
 CASE            ?i:case
@@ -100,6 +100,7 @@ NOTSTRING	[^\n\0\\\"]
 }
 
 <STRING_COMMENT><<EOF>>   {
+	BEGIN(INITIAL);
 	yyterminate();
 }
 
@@ -139,7 +140,7 @@ NOTSTRING	[^\n\0\\\"]
 	curr_lineno++;
 }
 
-<COMMENT>[^*(]|"("[^*]|"*"[^)] {}
+<COMMENT>. {}
 
 <COMMENT><<EOF>> {
 	BEGIN(INITIAL);
@@ -151,8 +152,6 @@ NOTSTRING	[^\n\0\\\"]
 	BEGIN(STRING);
 }
 
-<INITIAL><<EOF>> {}
-
 <STRING>{
 \"              {
                         *string_buf_ptr = '\0';
@@ -160,7 +159,7 @@ NOTSTRING	[^\n\0\\\"]
                         cool_yylval.symbol = stringtable.add_string(string_buf);
                         return STR_CONST;
                     }
-\0           {
+\\?\0           {
                         BEGIN(ERROR_STRING);
                         ASSERT("String contains null character");
                     }
